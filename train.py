@@ -19,8 +19,9 @@ load_dotenv()
 @torch.no_grad()
 def validation_epoch(model, criterion: nn.Module, loader: DataLoader, tqdm_desc: str):
     val_loss = 0.0
-    eer = 0.0
     device = next(model.parameters()).device
+    all_logits = []
+    all_targets = []
 
     model.eval()
     for audios, targets in tqdm(loader, desc=tqdm_desc):
@@ -28,10 +29,11 @@ def validation_epoch(model, criterion: nn.Module, loader: DataLoader, tqdm_desc:
         targets = targets.to(device)
         logits = model(audios)
         val_loss += criterion(logits, targets).item() * audios.shape[0]
-        eer += eer_metric(logits, targets).item() * audios.shape[0]
+        all_logits.append(logits.cpu().detach())
+        all_targets.append(targets.cpu().detach())
     val_loss /= len(loader.dataset)
-    eer /= len(loader.dataset)
-    return val_loss
+    eer = eer_metric(torch.cat(all_logits, 0), torch.cat(all_targets, 0))
+    return val_loss, eer
 
 
 def training_epoch(model, optimizer: torch.optim.Optimizer, criterion: nn.Module,
@@ -67,15 +69,18 @@ def train(model, optimizer: torch.optim.Optimizer, criterion,
             model, optimizer, criterion, train_loader, cfg['training']['epoch_size'],
             tqdm_desc=f'Training {epoch}/{num_epochs}'
         )
-        print(f"Epoch {epoch}/{num_epochs}. train_loss: {train_loss}")
+        print(f"Epoch {epoch}/{num_epochs}. train_loss: {train_loss}")# train_eer: {train_eer}")
         wandb.log({
             "epoch": epoch, 
             "epoch_train_loss": train_loss
         })
 
-        val_loss = validation_epoch(model, criterion, val_loader, tqdm_desc=f'Validation {epoch}/{num_epochs}')
-        wandb.log({'val_loss': val_loss})
-        print(f"Epoch {epoch}/{num_epochs}. val_loss: {val_loss}")
+        val_loss, val_eer = validation_epoch(model, criterion, val_loader, tqdm_desc=f'Validation {epoch}/{num_epochs}')
+        wandb.log({
+            'val_loss': val_loss,
+            'val_eer': val_eer
+        })
+        print(f"Epoch {epoch}/{num_epochs}. val_loss: {val_loss} val_eer: {val_eer}")
         # example = model.inference(temp=2)
         # print(example)
         # examples_table.add_data(epoch, example)
@@ -95,14 +100,15 @@ if __name__ == "__main__":
 
     wandb.init(
         project="anti_spoof",
-        config=cfg
+        config=cfg,
+        mode='disabled'
     )
 
     # data
     train_set = ASVspoofDataset(**cfg['dataset']['train'])
     val_set = ASVspoofDataset(**cfg['dataset']['val'])
-    train_loader = DataLoader(train_set, collate_fn=custom_collate_fn, batch_size=cfg['training']['batch_size'], shuffle=True, num_workers=16)
-    val_loader = DataLoader(val_set, collate_fn=custom_collate_fn, batch_size=cfg['training']['batch_size'], shuffle=False, num_workers=16)
+    train_loader = DataLoader(train_set, collate_fn=custom_collate_fn, batch_size=cfg['training']['batch_size'], shuffle=True, num_workers=8)
+    val_loader = DataLoader(val_set, collate_fn=custom_collate_fn, batch_size=cfg['training']['batch_size'], shuffle=False, num_workers=8)
     
     print("len val set", len(val_set))
     print("len train set", len(train_set))
