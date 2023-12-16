@@ -1,0 +1,22 @@
+dataset: 
+  train:
+    dataset_path: /home/ubuntu/data
+    part: train
+  val:
+    dataset_path: /home/ubuntu/data
+    part: dev
+    limit: 3200
+  test:
+    dataset_path: /home/ubuntu/data
+    part: eval
+
+training:
+  batch_size: 32
+  lr: 3.0e-4
+  weight_decay: 1.0E-4
+  num_epochs: 1000
+  epoch_size: 1000
+  save_path: /home/ubuntu/anti_spoof/saved/{pretty_time}.pth
+  ce_weights: '[1.0, 9.0]'
+model:
+  test: poh
