@@ -81,11 +81,7 @@ def train(model, optimizer: torch.optim.Optimizer, criterion,
             'val_eer': val_eer
         })
         print(f"Epoch {epoch}/{num_epochs}. val_loss: {val_loss} val_eer: {val_eer}")
-        # example = model.inference(temp=2)
-        # print(example)
-        # examples_table.add_data(epoch, example)
-        # wandb.log({'examples': copy(examples_table)})
-        # torch.save(model.state_dict(), save_path)
+        torch.save(model.state_dict(), save_path)
 
 
 if __name__ == "__main__":
