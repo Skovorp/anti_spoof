@@ -12,8 +12,8 @@ dataset:
 training:
   batch_size: 32
   lr: 1.0e-4
-  weight_decay: 1.0E-4
-  num_epochs: 21
+  weight_decay: 0
+  num_epochs: 10
   epoch_size: null
   save_path: /home/ubuntu/anti_spoof/saved/{pretty_time}.pth
   ce_weights: '[1.0, 9.0]'

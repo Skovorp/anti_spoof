@@ -4,7 +4,7 @@ import numpy as np
 from torch.nn import functional as F
 
 def pretty_now():
-    return str(datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3))).strftime("%Y-%m-%d_%H:%M"))
+    return str(datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3))).strftime("%Y-%m-%d_%H:%M:%S"))
 
 
 def eer_metric(logits, targets):

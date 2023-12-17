@@ -13,7 +13,7 @@ training:
   batch_size: 32
   lr: 1.0e-4
   weight_decay: 1.0E-4
-  num_epochs: 21
+  num_epochs: 10
   epoch_size: null
   save_path: /home/ubuntu/anti_spoof/saved/{pretty_time}.pth
   ce_weights: '[1.0, 9.0]'
@@ -28,5 +28,5 @@ model:
     channels: 128       # hint
     count: 4    
   p_gru:
-    hidden_size: 1024
+    hidden_size: 2048
     num_layers: 3       # hint 

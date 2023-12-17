@@ -63,7 +63,7 @@ def training_epoch(model, optimizer: torch.optim.Optimizer, criterion: nn.Module
 
 
 def train(model, optimizer: torch.optim.Optimizer, criterion,
-          train_loader: DataLoader, val_loader: DataLoader, save_path: str, num_epochs: int):    
+          train_loader: DataLoader, val_loader: DataLoader, test_loader: DataLoader, save_path: str, num_epochs: int, cfg):    
     for epoch in range(1, num_epochs + 1):
         train_loss = training_epoch(
             model, optimizer, criterion, train_loader, cfg['training']['epoch_size'],
@@ -81,7 +81,15 @@ def train(model, optimizer: torch.optim.Optimizer, criterion,
             'val_eer': val_eer
         })
         print(f"Epoch {epoch}/{num_epochs}. val_loss: {val_loss} val_eer: {val_eer}")
-        torch.save(model.state_dict(), save_path)
+        if save_path is not None:
+            torch.save(model.state_dict(), save_path)
+    print("Completed training. Running on test")
+    test_loss, test_eer = validation_epoch(model, criterion, test_loader, tqdm_desc=f'Testing...')
+    wandb.log({
+            'test_loss': test_loss,
+            'test_eer': test_eer
+        })
+    print("All done!")
 
 
 if __name__ == "__main__":
@@ -93,29 +101,33 @@ if __name__ == "__main__":
     with open(config_path) as f:
         cfg = yaml.safe_load(f)
     cfg['training']['save_path'] = cfg['training']['save_path'].replace('{pretty_time}', pretty_now())
+    cfg['training']['epoch_size'] = int(1e8) if not cfg['training']['epoch_size'] else cfg['training']['epoch_size']
 
     wandb.init(
         project="anti_spoof",
         config=cfg,
-        mode='disabled'
+        # mode='disabled'
     )
 
     # data
     train_set = ASVspoofDataset(**cfg['dataset']['train'])
     val_set = ASVspoofDataset(**cfg['dataset']['val'])
+    test_set = ASVspoofDataset(**cfg['dataset']['test'])
     train_loader = DataLoader(train_set, collate_fn=custom_collate_fn, batch_size=cfg['training']['batch_size'], shuffle=True, num_workers=8)
     val_loader = DataLoader(val_set, collate_fn=custom_collate_fn, batch_size=cfg['training']['batch_size'], shuffle=False, num_workers=8)
+    test_loader = DataLoader(test_set, collate_fn=custom_collate_fn, batch_size=cfg['training']['batch_size'], shuffle=False, num_workers=8)
     
-    print("len val set", len(val_set))
     print("len train set", len(train_set))
-    print("len val loader", len(val_loader))
+    print("len val set", len(val_set))
+    print("len test set", len(test_loader))
+    
     print("len train loader", len(train_loader))
+    print("len val loader", len(val_loader))
+    print("len test loader", len(test_loader))
 
     # model
     device = torch.device('cuda')
-    # print("before model", f"{torch.cuda.memory_allocated():019_d}")
     model = RawNet2(**cfg['model']).to(device)
-    # print("after model ", f"{torch.cuda.memory_allocated():019_d}")
     print(model)
 
     
@@ -123,5 +135,5 @@ if __name__ == "__main__":
     class_weights = torch.FloatTensor(eval(cfg['training']['ce_weights'])).to(device)
     criterion = nn.CrossEntropyLoss(weight=class_weights)
 
-    train(model, optimizer, criterion, train_loader, val_loader, cfg['training']['save_path'], cfg['training']['num_epochs'])
+    train(model, optimizer, criterion, train_loader, val_loader, test_loader, cfg['training']['save_path'], cfg['training']['num_epochs'], cfg)
     wandb.finish()
